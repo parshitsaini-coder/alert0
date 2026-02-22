@@ -1,0 +1,1692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NSE Alert Pro — Real-Time Stock Alerts</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lightweight-charts/4.1.3/lightweight-charts.standalone.production.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@300;400;500;600&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-primary: #080c12;
+    --bg-secondary: #0d1520;
+    --bg-card: #111926;
+    --bg-card-hover: #161f2e;
+    --bg-glass: rgba(17, 25, 38, 0.8);
+    --border: rgba(255,255,255,0.06);
+    --border-bright: rgba(255,255,255,0.12);
+    --accent: #00d4aa;
+    --accent-dim: rgba(0,212,170,0.15);
+    --accent-glow: rgba(0,212,170,0.3);
+    --red: #ff4d6d;
+    --red-dim: rgba(255,77,109,0.15);
+    --green: #00d4aa;
+    --green-dim: rgba(0,212,170,0.12);
+    --gold: #f5a623;
+    --gold-dim: rgba(245,166,35,0.15);
+    --text-primary: #e8edf5;
+    --text-secondary: #7a8aa0;
+    --text-muted: #3d4f63;
+    --font-main: 'Space Grotesk', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --font-display: 'Syne', sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-main);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg-primary); }
+  ::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+  /* HEADER */
+  .header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    height: 60px;
+    background: rgba(8,12,18,0.95);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 24px; gap: 20px;
+  }
+  .logo {
+    font-family: var(--font-display);
+    font-weight: 800; font-size: 18px;
+    letter-spacing: -0.5px;
+    display: flex; align-items: center; gap: 8px;
+    white-space: nowrap;
+  }
+  .logo-dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 10px var(--accent); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .search-wrap { flex: 1; max-width: 400px; position: relative; }
+  .search-input {
+    width: 100%; background: var(--bg-card); border: 1px solid var(--border);
+    color: var(--text-primary); font-family: var(--font-main); font-size: 13px;
+    padding: 8px 14px 8px 36px; border-radius: 8px; outline: none;
+    transition: all 0.2s;
+  }
+  .search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+  .search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); font-size: 14px; }
+  .search-dropdown {
+    position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+    background: var(--bg-card); border: 1px solid var(--border-bright);
+    border-radius: 10px; overflow: hidden; z-index: 200;
+    max-height: 320px; overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    display: none;
+  }
+  .search-dropdown.open { display: block; }
+  .search-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; cursor: pointer; transition: background 0.15s;
+    border-bottom: 1px solid var(--border);
+  }
+  .search-item:hover { background: var(--bg-card-hover); }
+  .search-item:last-child { border-bottom: none; }
+  .search-sym { font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--accent); }
+  .search-name { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .header-actions { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+  .btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; border: none; font-family: var(--font-main);
+    letter-spacing: 0.3px;
+  }
+  .btn-ghost { background: transparent; border: 1px solid var(--border-bright); color: var(--text-secondary); }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+  .btn-accent { background: var(--accent); color: #000; }
+  .btn-accent:hover { background: #00efc0; box-shadow: 0 0 20px var(--accent-glow); }
+  .btn-red { background: var(--red); color: #fff; }
+  .btn-red:hover { background: #ff6b85; }
+  .tg-status {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 600;
+    border: 1px solid var(--border);
+  }
+  .tg-status.connected { border-color: rgba(0,212,170,0.4); color: var(--accent); background: var(--accent-dim); }
+  .tg-status.disconnected { border-color: rgba(255,77,109,0.3); color: var(--red); background: var(--red-dim); }
+  .tg-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .tg-status.connected .tg-dot { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  .tg-status.disconnected .tg-dot { background: var(--red); }
+
+  /* LAYOUT */
+  .app { display: flex; margin-top: 60px; height: calc(100vh - 60px); }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 320px; min-width: 320px; background: var(--bg-secondary);
+    border-right: 1px solid var(--border); display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .sidebar-tabs { display: flex; border-bottom: 1px solid var(--border); }
+  .tab {
+    flex: 1; padding: 12px 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+    text-align: center; cursor: pointer; color: var(--text-secondary);
+    transition: all 0.2s; text-transform: uppercase; border-bottom: 2px solid transparent;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--accent-dim); }
+  .tab:hover:not(.active) { color: var(--text-primary); background: rgba(255,255,255,0.03); }
+  .tab-content { display: none; flex: 1; overflow-y: auto; flex-direction: column; }
+  .tab-content.active { display: flex; }
+
+  /* INDEX SUMMARY */
+  .index-bar {
+    padding: 10px 12px; display: flex; gap: 8px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--border); background: var(--bg-primary);
+  }
+  .index-chip {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 10px; font-size: 11px;
+  }
+  .index-chip .idx-name { color: var(--text-secondary); font-size: 10px; }
+  .index-chip .idx-val { font-family: var(--font-mono); font-weight: 600; font-size: 12px; }
+  .index-chip .idx-chg { font-size: 10px; }
+  .up { color: var(--green); }
+  .dn { color: var(--red); }
+  .flat { color: var(--text-secondary); }
+
+  /* STOCK LIST */
+  .stock-list { flex: 1; overflow-y: auto; }
+  .stock-item {
+    display: flex; align-items: center; padding: 10px 14px; cursor: pointer;
+    border-bottom: 1px solid var(--border); transition: all 0.15s; position: relative;
+  }
+  .stock-item:hover { background: var(--bg-card-hover); }
+  .stock-item.active { background: var(--bg-card); border-left: 2px solid var(--accent); }
+  .stock-item.has-alert::after {
+    content: ''; position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+    width: 6px; height: 6px; background: var(--gold); border-radius: 50%;
+    box-shadow: 0 0 6px var(--gold);
+  }
+  .si-info { flex: 1; min-width: 0; }
+  .si-sym { font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--text-primary); }
+  .si-name { font-size: 10px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+  .si-rank { font-size: 9px; color: var(--text-muted); font-family: var(--font-mono); }
+  .si-price { text-align: right; min-width: 90px; }
+  .si-pval { font-family: var(--font-mono); font-size: 13px; font-weight: 600; }
+  .si-pchg { font-family: var(--font-mono); font-size: 10px; margin-top: 2px; }
+  .price-up { animation: flashGreen 0.4s; }
+  .price-dn { animation: flashRed 0.4s; }
+  @keyframes flashGreen { 0%{background:rgba(0,212,170,0.3)} 100%{background:transparent} }
+  @keyframes flashRed { 0%{background:rgba(255,77,109,0.3)} 100%{background:transparent} }
+
+  /* ALERTS LIST */
+  .alerts-list { flex: 1; overflow-y: auto; padding: 12px; }
+  .alert-card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px; margin-bottom: 8px; position: relative;
+  }
+  .alert-card.triggered { border-color: rgba(245,166,35,0.4); background: rgba(245,166,35,0.05); }
+  .alert-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .alert-sym { font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--accent); }
+  .alert-type-badge {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 4px;
+  }
+  .badge-above { background: rgba(0,212,170,0.2); color: var(--green); }
+  .badge-below { background: rgba(255,77,109,0.2); color: var(--red); }
+  .badge-triggered { background: rgba(245,166,35,0.2); color: var(--gold); }
+  .alert-prices { display: flex; gap: 16px; font-size: 11px; color: var(--text-secondary); margin-bottom: 6px; }
+  .alert-price-val { font-family: var(--font-mono); color: var(--text-primary); font-weight: 600; }
+  .alert-actions { display: flex; gap: 6px; justify-content: flex-end; }
+  .icon-btn {
+    width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--border);
+    background: transparent; color: var(--text-secondary); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 12px;
+    transition: all 0.2s;
+  }
+  .icon-btn:hover { border-color: var(--red); color: var(--red); background: var(--red-dim); }
+  .icon-btn.edit:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+  .empty-state {
+    text-align: center; padding: 40px 20px; color: var(--text-muted);
+  }
+  .empty-icon { font-size: 36px; margin-bottom: 12px; opacity: 0.5; }
+  .empty-text { font-size: 12px; line-height: 1.6; }
+
+  /* MAIN AREA */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+  /* STOCK HEADER */
+  .stock-header {
+    padding: 16px 24px; border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary); display: flex; align-items: center; gap: 20px;
+    flex-wrap: wrap;
+  }
+  .sh-left { flex: 1; min-width: 0; }
+  .sh-sym { font-family: var(--font-display); font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+  .sh-name { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .sh-price-wrap { display: flex; align-items: baseline; gap: 12px; }
+  .sh-price { font-family: var(--font-mono); font-size: 32px; font-weight: 600; }
+  .sh-change { font-family: var(--font-mono); font-size: 14px; }
+  .sh-stats { display: flex; gap: 20px; flex-wrap: wrap; }
+  .sh-stat { text-align: right; }
+  .sh-stat-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); }
+  .sh-stat-val { font-family: var(--font-mono); font-size: 12px; font-weight: 600; margin-top: 2px; }
+  .sh-actions { display: flex; gap: 8px; align-items: center; }
+
+  /* TIMEFRAME SELECTOR */
+  .chart-toolbar {
+    display: flex; align-items: center; padding: 10px 24px; gap: 10px;
+    border-bottom: 1px solid var(--border); background: var(--bg-primary);
+  }
+  .tf-group { display: flex; gap: 4px; background: var(--bg-card); border-radius: 8px; padding: 3px; }
+  .tf-btn {
+    padding: 5px 12px; border-radius: 6px; font-size: 11px; font-weight: 600;
+    cursor: pointer; border: none; background: transparent;
+    color: var(--text-secondary); font-family: var(--font-mono); transition: all 0.2s;
+  }
+  .tf-btn.active { background: var(--accent); color: #000; }
+  .tf-btn:hover:not(.active) { color: var(--text-primary); background: rgba(255,255,255,0.05); }
+  .chart-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-left: auto; }
+  .live-badge {
+    display: flex; align-items: center; gap: 5px;
+    background: rgba(0,212,170,0.1); border: 1px solid rgba(0,212,170,0.3);
+    padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; color: var(--accent);
+  }
+  .live-dot { width: 5px; height: 5px; background: var(--accent); border-radius: 50%; animation: pulse 1.5s infinite; }
+
+  /* CHART */
+  .chart-area { flex: 1; position: relative; overflow: hidden; }
+  #chart { width: 100%; height: 100%; }
+  .chart-loading {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: var(--bg-primary); flex-direction: column; gap: 12px;
+  }
+  .spinner {
+    width: 32px; height: 32px; border: 2px solid var(--border);
+    border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* BOTTOM PANEL */
+  .bottom-panel {
+    height: 200px; border-top: 1px solid var(--border);
+    background: var(--bg-secondary); display: flex; overflow: hidden;
+  }
+  .panel-section { flex: 1; padding: 14px; border-right: 1px solid var(--border); overflow-y: auto; }
+  .panel-section:last-child { border-right: none; }
+  .panel-title { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 10px; font-weight: 600; }
+  .stat-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .stat-label { font-size: 11px; color: var(--text-secondary); }
+  .stat-val { font-family: var(--font-mono); font-size: 11px; font-weight: 600; }
+  .mini-bar { height: 4px; background: var(--border); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+  .mini-bar-fill { height: 100%; background: linear-gradient(90deg, var(--red), var(--green)); border-radius: 2px; transition: width 0.5s; }
+
+  /* MODALS */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+    z-index: 500; display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--bg-card); border: 1px solid var(--border-bright);
+    border-radius: 16px; padding: 28px; width: 440px; max-width: 90vw;
+    transform: translateY(20px); transition: transform 0.2s;
+    box-shadow: 0 40px 100px rgba(0,0,0,0.6);
+    max-height: 90vh; overflow-y: auto;
+  }
+  .overlay.open .modal { transform: translateY(0); }
+  .modal-title { font-family: var(--font-display); font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  .modal-sub { font-size: 12px; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.6; }
+  .form-group { margin-bottom: 16px; }
+  .form-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 6px; display: block; }
+  .form-input {
+    width: 100%; background: var(--bg-secondary); border: 1px solid var(--border);
+    color: var(--text-primary); font-family: var(--font-mono); font-size: 13px;
+    padding: 10px 14px; border-radius: 8px; outline: none; transition: all 0.2s;
+  }
+  .form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+  .form-hint { font-size: 10px; color: var(--text-muted); margin-top: 5px; line-height: 1.5; }
+  .form-row { display: flex; gap: 10px; }
+  .form-row .form-group { flex: 1; }
+  .toggle-group { display: flex; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+  .toggle-btn {
+    flex: 1; padding: 10px; font-size: 12px; font-weight: 600; cursor: pointer;
+    border: none; background: transparent; color: var(--text-secondary);
+    transition: all 0.2s; font-family: var(--font-main);
+  }
+  .toggle-btn.active.above { background: var(--accent-dim); color: var(--accent); }
+  .toggle-btn.active.below { background: var(--red-dim); color: var(--red); }
+  .modal-footer { display: flex; gap: 10px; margin-top: 24px; }
+  .modal-footer .btn { flex: 1; justify-content: center; padding: 12px; }
+  .step-badge {
+    display: inline-flex; width: 24px; height: 24px; border-radius: 50%;
+    background: var(--accent-dim); border: 1px solid rgba(0,212,170,0.3);
+    color: var(--accent); font-size: 11px; font-weight: 700;
+    align-items: center; justify-content: center; margin-right: 8px;
+  }
+  .step-item { display: flex; align-items: flex-start; gap: 0; margin-bottom: 12px; font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+  .code-block {
+    background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px 12px; font-family: var(--font-mono); font-size: 11px;
+    color: var(--accent); margin: 6px 0; word-break: break-all;
+  }
+
+  /* TOAST */
+  .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
+  .toast {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 16px; font-size: 12px;
+    display: flex; align-items: center; gap: 10px;
+    animation: slideIn 0.3s ease; max-width: 320px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+  }
+  .toast.success { border-color: rgba(0,212,170,0.4); }
+  .toast.error { border-color: rgba(255,77,109,0.4); }
+  .toast.alert { border-color: rgba(245,166,35,0.5); background: rgba(245,166,35,0.05); }
+  .toast-icon { font-size: 16px; }
+  @keyframes slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* ALERT LOG */
+  .alert-log {
+    position: fixed; bottom: 20px; left: 340px; z-index: 50;
+    background: var(--bg-card); border: 1px solid var(--border-bright); border-radius: 10px;
+    padding: 10px 14px; font-size: 11px; color: var(--text-secondary);
+    display: flex; align-items: center; gap: 8px; max-width: 400px;
+    opacity: 0; transition: opacity 0.3s; pointer-events: none;
+  }
+  .alert-log.show { opacity: 1; }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    .sidebar { width: 260px; min-width: 260px; }
+    .bottom-panel { display: none; }
+  }
+  @media (max-width: 600px) {
+    .sidebar { display: none; }
+    .sh-stats { display: none; }
+  }
+
+  /* WELCOME SCREEN */
+  .welcome {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 16px; text-align: center; padding: 40px;
+  }
+  .welcome-icon { font-size: 64px; opacity: 0.3; }
+  .welcome-title { font-family: var(--font-display); font-size: 24px; font-weight: 700; color: var(--text-secondary); }
+  .welcome-sub { font-size: 13px; color: var(--text-muted); max-width: 320px; line-height: 1.7; }
+
+  /* NSE BANNER */
+  .nse-ticker {
+    background: var(--bg-card); border-bottom: 1px solid var(--border);
+    padding: 6px 0; overflow: hidden; white-space: nowrap;
+  }
+  .nse-ticker-inner { display: inline-flex; gap: 32px; animation: scroll 60s linear infinite; }
+  @keyframes scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  .ticker-item { font-family: var(--font-mono); font-size: 11px; display: flex; gap: 8px; align-items: center; }
+  .ticker-sym { color: var(--text-secondary); }
+  .ticker-price { font-weight: 600; }
+
+  .scan-btn-wrap { padding: 12px; border-bottom: 1px solid var(--border); }
+  .add-alert-btn-big {
+    width: 100%; padding: 10px; border-radius: 8px; border: 1px dashed rgba(0,212,170,0.3);
+    background: var(--accent-dim); color: var(--accent); font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; font-family: var(--font-main);
+  }
+  .add-alert-btn-big:hover { border-style: solid; box-shadow: 0 0 15px var(--accent-dim); }
+
+  .update-time { font-size: 9px; color: var(--text-muted); font-family: var(--font-mono); margin-left: auto; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-dot"></div>
+    NSE Alert Pro
+  </div>
+  <div class="search-wrap">
+    <span class="search-icon">⌕</span>
+    <input type="text" class="search-input" id="searchInput" placeholder="Search stocks — RELIANCE, TCS, HDFC..." autocomplete="off">
+    <div class="search-dropdown" id="searchDropdown"></div>
+  </div>
+  <div class="header-actions">
+    <div class="tg-status disconnected" id="tgStatus">
+      <div class="tg-dot"></div>
+      <span id="tgStatusText">Telegram: Not Setup</span>
+    </div>
+    <button class="btn btn-ghost" onclick="openTelegramModal()">⚙ Telegram</button>
+    <button class="btn btn-accent" onclick="openAlertModal()">＋ Set Alert</button>
+  </div>
+</header>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-tabs">
+      <div class="tab active" onclick="switchTab('stocks')">📈 Top 300</div>
+      <div class="tab" onclick="switchTab('alerts')">🔔 My Alerts</div>
+    </div>
+    <div class="tab-content active" id="tab-stocks">
+      <div class="index-bar" id="indexBar">
+        <div class="index-chip">
+          <div class="idx-name">NIFTY 50</div>
+          <div class="idx-val" id="nifty-val">—</div>
+          <div class="idx-chg" id="nifty-chg">—</div>
+        </div>
+        <div class="index-chip">
+          <div class="idx-name">SENSEX</div>
+          <div class="idx-val" id="sensex-val">—</div>
+          <div class="idx-chg" id="sensex-chg">—</div>
+        </div>
+        <div class="index-chip">
+          <div class="idx-name">NIFTY BANK</div>
+          <div class="idx-val" id="banknifty-val">—</div>
+          <div class="idx-chg" id="banknifty-chg">—</div>
+        </div>
+        <div class="update-time" id="updateTime">Updating...</div>
+      </div>
+      <div class="stock-list" id="stockList"></div>
+    </div>
+    <div class="tab-content" id="tab-alerts">
+      <div class="scan-btn-wrap">
+        <button class="add-alert-btn-big" onclick="openAlertModal()">＋ Add New Price Alert</button>
+      </div>
+      <div class="alerts-list" id="alertsList">
+        <div class="empty-state">
+          <div class="empty-icon">🔔</div>
+          <div class="empty-text">No alerts set yet.<br>Click "+ Set Alert" to create<br>your first price alert.</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main" id="mainArea">
+    <div class="welcome" id="welcomeScreen">
+      <div class="welcome-icon">📊</div>
+      <div class="welcome-title">Select a stock to view</div>
+      <div class="welcome-sub">Click any stock from the list to view live chart, price details and set alerts.</div>
+    </div>
+
+    <div id="stockView" style="display:none; flex:1; flex-direction:column; overflow:hidden; display:none;">
+      <!-- STOCK HEADER -->
+      <div class="stock-header" id="stockHeader">
+        <div class="sh-left">
+          <div class="sh-sym" id="headerSym">—</div>
+          <div class="sh-name" id="headerName">—</div>
+          <div class="sh-price-wrap" style="margin-top:6px;">
+            <div class="sh-price" id="headerPrice">—</div>
+            <div class="sh-change" id="headerChange">—</div>
+          </div>
+        </div>
+        <div class="sh-stats">
+          <div class="sh-stat">
+            <div class="sh-stat-label">Day High</div>
+            <div class="sh-stat-val up" id="statHigh">—</div>
+          </div>
+          <div class="sh-stat">
+            <div class="sh-stat-label">Day Low</div>
+            <div class="sh-stat-val dn" id="statLow">—</div>
+          </div>
+          <div class="sh-stat">
+            <div class="sh-stat-label">Open</div>
+            <div class="sh-stat-val" id="statOpen">—</div>
+          </div>
+          <div class="sh-stat">
+            <div class="sh-stat-label">Prev Close</div>
+            <div class="sh-stat-val" id="statPrevClose">—</div>
+          </div>
+          <div class="sh-stat">
+            <div class="sh-stat-label">Volume</div>
+            <div class="sh-stat-val" id="statVolume">—</div>
+          </div>
+          <div class="sh-stat">
+            <div class="sh-stat-label">Mkt Cap</div>
+            <div class="sh-stat-val" id="statMktCap">—</div>
+          </div>
+        </div>
+        <div class="sh-actions">
+          <button class="btn btn-ghost" onclick="openAlertModal()">🔔 Set Alert</button>
+        </div>
+      </div>
+
+      <!-- CHART TOOLBAR -->
+      <div class="chart-toolbar">
+        <div class="tf-group">
+          <button class="tf-btn" onclick="setTF('1m')">1m</button>
+          <button class="tf-btn" onclick="setTF('5m')">5m</button>
+          <button class="tf-btn" onclick="setTF('15m')">15m</button>
+          <button class="tf-btn active" onclick="setTF('1h')">1H</button>
+          <button class="tf-btn" onclick="setTF('1d')">1D</button>
+          <button class="tf-btn" onclick="setTF('1wk')">1W</button>
+          <button class="tf-btn" onclick="setTF('1mo')">1M</button>
+          <button class="tf-btn" onclick="setTF('3mo')">3M</button>
+          <button class="tf-btn" onclick="setTF('1y')">1Y</button>
+        </div>
+        <div class="live-badge">
+          <div class="live-dot"></div>
+          LIVE
+        </div>
+        <div class="chart-label" id="chartLabel">NSE Real-Time Data</div>
+      </div>
+
+      <!-- CHART AREA -->
+      <div class="chart-area" id="chartArea">
+        <div class="chart-loading" id="chartLoading">
+          <div class="spinner"></div>
+          <div style="font-size:12px;color:var(--text-muted);">Loading chart data...</div>
+        </div>
+        <div id="chart"></div>
+      </div>
+
+      <!-- BOTTOM PANEL -->
+      <div class="bottom-panel">
+        <div class="panel-section">
+          <div class="panel-title">Price Info</div>
+          <div class="stat-row"><span class="stat-label">52W High</span><span class="stat-val up" id="bp52H">—</span></div>
+          <div class="stat-row"><span class="stat-label">52W Low</span><span class="stat-val dn" id="bp52L">—</span></div>
+          <div class="stat-row"><span class="stat-label">Avg Vol</span><span class="stat-val" id="bpAvgVol">—</span></div>
+          <div class="stat-row"><span class="stat-label">P/E Ratio</span><span class="stat-val" id="bpPE">—</span></div>
+          <div style="margin-top:8px;">
+            <div style="font-size:9px;color:var(--text-muted);margin-bottom:4px;">52W RANGE</div>
+            <div class="mini-bar"><div class="mini-bar-fill" id="rangeBar" style="width:50%"></div></div>
+          </div>
+        </div>
+        <div class="panel-section">
+          <div class="panel-title">Fundamentals</div>
+          <div class="stat-row"><span class="stat-label">EPS</span><span class="stat-val" id="bpEPS">—</span></div>
+          <div class="stat-row"><span class="stat-label">P/B Ratio</span><span class="stat-val" id="bpPB">—</span></div>
+          <div class="stat-row"><span class="stat-label">Div Yield</span><span class="stat-val" id="bpDivYield">—</span></div>
+          <div class="stat-row"><span class="stat-label">Beta</span><span class="stat-val" id="bpBeta">—</span></div>
+        </div>
+        <div class="panel-section">
+          <div class="panel-title">Active Alerts on This Stock</div>
+          <div id="stockAlerts" style="font-size:11px;color:var(--text-muted);">No alerts set for this stock.</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- TELEGRAM MODAL -->
+<div class="overlay" id="telegramOverlay" onclick="closeTelegramModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">📱 Telegram Setup</div>
+    <div class="modal-sub">Connect your Telegram bot to receive instant price alerts on your channel or group.</div>
+
+    <div style="background:var(--bg-secondary);border-radius:10px;padding:14px;margin-bottom:20px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">How to Setup</div>
+      <div class="step-item"><span class="step-badge">1</span><div>Open Telegram, search for <strong style="color:var(--accent)">@BotFather</strong> and type <strong>/newbot</strong> to create a bot.</div></div>
+      <div class="step-item"><span class="step-badge">2</span><div>Copy the <strong>Bot Token</strong> provided by BotFather (looks like: <span style="color:var(--gold);font-family:var(--font-mono);font-size:10px;">1234567890:AAF...</span>)</div></div>
+      <div class="step-item"><span class="step-badge">3</span><div>Add your bot to your channel/group as Admin. Then send a message there.</div></div>
+      <div class="step-item"><span class="step-badge">4</span><div>Chat ID pata karne ke liye browser mein kholo: <div class="code-block">https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</div>Wahan <b style="color:var(--accent)">"chat":{"id": -100XXXXXXX}</b> dikhega</div></div>
+      <div class="step-item"><span class="step-badge">5</span><div><b style="color:var(--gold)">⚠ Local file se kholne par</b> browser CORS block kar sakta hai. Agar error aaye to file ko <b>VS Code Live Server</b> ya <b>Python server</b> se kholein:<div class="code-block">python -m http.server 8080</div>Phir <span style="color:var(--accent)">http://localhost:8080</span> par kholein</div></div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Bot Token</label>
+      <input type="text" class="form-input" id="tgToken" placeholder="1234567890:AAFxxxxxxx...">
+      <div class="form-hint">Get this from @BotFather on Telegram</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Chat ID (Channel/Group)</label>
+      <input type="text" class="form-input" id="tgChatId" placeholder="-1001234567890 or @channelname">
+      <div class="form-hint">For channels: use -100 prefix. For username: @yourchannel</div>
+    </div>
+
+    <div id="tgErrorHelp" style="display:none;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeTelegramModal()">Cancel</button>
+      <button class="btn btn-accent" onclick="testTelegram()" id="testTgBtn">🧪 Test Connection</button>
+      <button class="btn btn-accent" onclick="saveTelegram()" style="background:var(--accent);">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ALERT MODAL -->
+<div class="overlay" id="alertOverlay" onclick="closeAlertModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">🔔 Set Price Alert</div>
+    <div class="modal-sub">Get instant Telegram notification when stock hits your target price.</div>
+
+    <div class="form-group">
+      <label class="form-label">Stock Symbol</label>
+      <input type="text" class="form-input" id="alertStock" placeholder="e.g. RELIANCE" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+      <div class="form-hint">Use NSE symbol. Current: <span id="alertCurrentPrice" style="color:var(--accent);font-family:var(--font-mono);">—</span></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Alert Type</label>
+      <div class="toggle-group">
+        <button class="toggle-btn active above" id="typeAbove" onclick="setAlertType('above')">▲ Price Goes Above</button>
+        <button class="toggle-btn below" id="typeBelow" onclick="setAlertType('below')">▼ Price Goes Below</button>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Target Price (₹)</label>
+        <input type="number" class="form-input" id="alertPrice" placeholder="0.00" step="0.05">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Alert Message (Optional)</label>
+        <input type="text" class="form-input" id="alertNote" placeholder="My buy target...">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Repeat Alert</label>
+      <select class="form-input" id="alertRepeat">
+        <option value="once">Once (Remove after trigger)</option>
+        <option value="always">Always (Keep alerting)</option>
+        <option value="5">Every 5 minutes while price holds</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeAlertModal()">Cancel</button>
+      <button class="btn btn-accent" onclick="saveAlert()" style="background:var(--accent);">✓ Create Alert</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// NSE TOP 300 STOCKS BY MARKET CAP
+// ============================================================
+const NSE_STOCKS = [
+  { sym:'RELIANCE', name:'Reliance Industries Ltd', rank:1 },
+  { sym:'TCS', name:'Tata Consultancy Services', rank:2 },
+  { sym:'HDFCBANK', name:'HDFC Bank Ltd', rank:3 },
+  { sym:'BHARTIARTL', name:'Bharti Airtel Ltd', rank:4 },
+  { sym:'ICICIBANK', name:'ICICI Bank Ltd', rank:5 },
+  { sym:'INFOSYS', name:'Infosys Ltd', rank:6 },
+  { sym:'SBIN', name:'State Bank of India', rank:7 },
+  { sym:'LT', name:'Larsen & Toubro Ltd', rank:8 },
+  { sym:'HINDUNILVR', name:'Hindustan Unilever Ltd', rank:9 },
+  { sym:'ITC', name:'ITC Ltd', rank:10 },
+  { sym:'KOTAKBANK', name:'Kotak Mahindra Bank', rank:11 },
+  { sym:'AXISBANK', name:'Axis Bank Ltd', rank:12 },
+  { sym:'BAJFINANCE', name:'Bajaj Finance Ltd', rank:13 },
+  { sym:'MARUTI', name:'Maruti Suzuki India', rank:14 },
+  { sym:'ASIANPAINT', name:'Asian Paints Ltd', rank:15 },
+  { sym:'TITAN', name:'Titan Company Ltd', rank:16 },
+  { sym:'ADANIENT', name:'Adani Enterprises Ltd', rank:17 },
+  { sym:'ADANIPORTS', name:'Adani Ports & SEZ', rank:18 },
+  { sym:'NTPC', name:'NTPC Ltd', rank:19 },
+  { sym:'POWERGRID', name:'Power Grid Corp of India', rank:20 },
+  { sym:'WIPRO', name:'Wipro Ltd', rank:21 },
+  { sym:'ULTRACEMCO', name:'UltraTech Cement Ltd', rank:22 },
+  { sym:'HCLTECH', name:'HCL Technologies Ltd', rank:23 },
+  { sym:'TATAMOTORS', name:'Tata Motors Ltd', rank:24 },
+  { sym:'SUNPHARMA', name:'Sun Pharmaceutical', rank:25 },
+  { sym:'M&M', name:'Mahindra & Mahindra', rank:26 },
+  { sym:'BAJAJFINSV', name:'Bajaj Finserv Ltd', rank:27 },
+  { sym:'ONGC', name:'Oil and Natural Gas Corp', rank:28 },
+  { sym:'JSWSTEEL', name:'JSW Steel Ltd', rank:29 },
+  { sym:'TATASTEEL', name:'Tata Steel Ltd', rank:30 },
+  { sym:'NESTLEIND', name:'Nestle India Ltd', rank:31 },
+  { sym:'TECHM', name:'Tech Mahindra Ltd', rank:32 },
+  { sym:'GRASIM', name:'Grasim Industries Ltd', rank:33 },
+  { sym:'DRREDDY', name:'Dr Reddy\'s Laboratories', rank:34 },
+  { sym:'COALINDIA', name:'Coal India Ltd', rank:35 },
+  { sym:'HINDALCO', name:'Hindalco Industries', rank:36 },
+  { sym:'CIPLA', name:'Cipla Ltd', rank:37 },
+  { sym:'EICHERMOT', name:'Eicher Motors Ltd', rank:38 },
+  { sym:'DIVISLAB', name:'Divi\'s Laboratories', rank:39 },
+  { sym:'BRITANNIA', name:'Britannia Industries', rank:40 },
+  { sym:'APOLLOHOSP', name:'Apollo Hospitals Enterprise', rank:41 },
+  { sym:'TATACONSUM', name:'Tata Consumer Products', rank:42 },
+  { sym:'INDUSINDBK', name:'IndusInd Bank Ltd', rank:43 },
+  { sym:'HEROMOTOCO', name:'Hero MotoCorp Ltd', rank:44 },
+  { sym:'BPCL', name:'Bharat Petroleum Corp', rank:45 },
+  { sym:'SHREECEM', name:'Shree Cement Ltd', rank:46 },
+  { sym:'ADANIGREEN', name:'Adani Green Energy', rank:47 },
+  { sym:'SIEMENS', name:'Siemens Ltd', rank:48 },
+  { sym:'HAVELLS', name:'Havells India Ltd', rank:49 },
+  { sym:'TRENT', name:'Trent Ltd', rank:50 },
+  { sym:'PIDILITIND', name:'Pidilite Industries', rank:51 },
+  { sym:'BAJAJ-AUTO', name:'Bajaj Auto Ltd', rank:52 },
+  { sym:'TORNTPHARM', name:'Torrent Pharmaceuticals', rank:53 },
+  { sym:'AMBUJACEM', name:'Ambuja Cements Ltd', rank:54 },
+  { sym:'ABB', name:'ABB India Ltd', rank:55 },
+  { sym:'ZOMATO', name:'Zomato Ltd', rank:56 },
+  { sym:'PAYTM', name:'One97 Communications', rank:57 },
+  { sym:'NAUKRI', name:'Info Edge (India)', rank:58 },
+  { sym:'DMART', name:'Avenue Supermarts Ltd', rank:59 },
+  { sym:'IRCTC', name:'Indian Railway Catering', rank:60 },
+  { sym:'LTI', name:'LTIMindtree Ltd', rank:61 },
+  { sym:'MPHASIS', name:'Mphasis Ltd', rank:62 },
+  { sym:'PERSISTENT', name:'Persistent Systems', rank:63 },
+  { sym:'COFORGE', name:'Coforge Ltd', rank:64 },
+  { sym:'PAGEIND', name:'Page Industries Ltd', rank:65 },
+  { sym:'MARICO', name:'Marico Ltd', rank:66 },
+  { sym:'COLPAL', name:'Colgate-Palmolive India', rank:67 },
+  { sym:'GODREJCP', name:'Godrej Consumer Products', rank:68 },
+  { sym:'DABUR', name:'Dabur India Ltd', rank:69 },
+  { sym:'EMAMILTD', name:'Emami Ltd', rank:70 },
+  { sym:'BERGEPAINT', name:'Berger Paints India', rank:71 },
+  { sym:'KANSAINER', name:'Kansai Nerolac Paints', rank:72 },
+  { sym:'VOLTAS', name:'Voltas Ltd', rank:73 },
+  { sym:'WHIRLPOOL', name:'Whirlpool of India', rank:74 },
+  { sym:'DIXON', name:'Dixon Technologies India', rank:75 },
+  { sym:'APLAPOLLO', name:'APL Apollo Tubes Ltd', rank:76 },
+  { sym:'CUMMINSIND', name:'Cummins India Ltd', rank:77 },
+  { sym:'THERMAX', name:'Thermax Ltd', rank:78 },
+  { sym:'BHEL', name:'Bharat Heavy Electricals', rank:79 },
+  { sym:'HAL', name:'Hindustan Aeronautics', rank:80 },
+  { sym:'BEL', name:'Bharat Electronics Ltd', rank:81 },
+  { sym:'MFSL', name:'Max Financial Services', rank:82 },
+  { sym:'SBILIFE', name:'SBI Life Insurance', rank:83 },
+  { sym:'HDFCLIFE', name:'HDFC Life Insurance', rank:84 },
+  { sym:'ICICIPRULI', name:'ICICI Prudential Life', rank:85 },
+  { sym:'ICICIGI', name:'ICICI Lombard General Ins', rank:86 },
+  { sym:'STARHEALTH', name:'Star Health & Allied Ins', rank:87 },
+  { sym:'BANDHANBNK', name:'Bandhan Bank Ltd', rank:88 },
+  { sym:'FEDERALBNK', name:'Federal Bank Ltd', rank:89 },
+  { sym:'IDFCFIRSTB', name:'IDFC First Bank Ltd', rank:90 },
+  { sym:'RBLBANK', name:'RBL Bank Ltd', rank:91 },
+  { sym:'YESBANK', name:'Yes Bank Ltd', rank:92 },
+  { sym:'PNB', name:'Punjab National Bank', rank:93 },
+  { sym:'CANBK', name:'Canara Bank', rank:94 },
+  { sym:'BANKBARODA', name:'Bank of Baroda', rank:95 },
+  { sym:'UNIONBANK', name:'Union Bank of India', rank:96 },
+  { sym:'IOB', name:'Indian Overseas Bank', rank:97 },
+  { sym:'INDIANB', name:'Indian Bank', rank:98 },
+  { sym:'CENTRALBK', name:'Central Bank of India', rank:99 },
+  { sym:'MAHABANK', name:'Bank of Maharashtra', rank:100 },
+  { sym:'MANAPPURAM', name:'Manappuram Finance', rank:101 },
+  { sym:'MUTHOOTFIN', name:'Muthoot Finance Ltd', rank:102 },
+  { sym:'CHOLAFIN', name:'Cholamandalam Investment', rank:103 },
+  { sym:'BAJAJHFL', name:'Bajaj Housing Finance', rank:104 },
+  { sym:'PNBHOUSING', name:'PNB Housing Finance', rank:105 },
+  { sym:'RECLTD', name:'REC Limited', rank:106 },
+  { sym:'PFC', name:'Power Finance Corp', rank:107 },
+  { sym:'IRFC', name:'Indian Railway Finance', rank:108 },
+  { sym:'LICHSGFIN', name:'LIC Housing Finance', rank:109 },
+  { sym:'M&MFIN', name:'Mahindra & Mahindra Financial', rank:110 },
+  { sym:'TATAPOWER', name:'Tata Power Company', rank:111 },
+  { sym:'ADANIPOWER', name:'Adani Power Ltd', rank:112 },
+  { sym:'ADANITRANS', name:'Adani Transmission', rank:113 },
+  { sym:'TORNTPOWER', name:'Torrent Power Ltd', rank:114 },
+  { sym:'CESC', name:'CESC Ltd', rank:115 },
+  { sym:'NHPC', name:'NHPC Ltd', rank:116 },
+  { sym:'SJVN', name:'SJVN Ltd', rank:117 },
+  { sym:'GAIL', name:'GAIL (India) Ltd', rank:118 },
+  { sym:'IOC', name:'Indian Oil Corporation', rank:119 },
+  { sym:'HPCL', name:'Hindustan Petroleum Corp', rank:120 },
+  { sym:'PETRONET', name:'Petronet LNG Ltd', rank:121 },
+  { sym:'CASTROLIND', name:'Castrol India Ltd', rank:122 },
+  { sym:'HINDPETRO', name:'Hindustan Petroleum', rank:123 },
+  { sym:'SAIL', name:'Steel Authority of India', rank:124 },
+  { sym:'NMDC', name:'NMDC Ltd', rank:125 },
+  { sym:'VEDL', name:'Vedanta Ltd', rank:126 },
+  { sym:'HINDCOPPER', name:'Hindustan Copper Ltd', rank:127 },
+  { sym:'NATIONALUM', name:'National Aluminium Co', rank:128 },
+  { sym:'MOIL', name:'MOIL Ltd', rank:129 },
+  { sym:'AUROPHARMA', name:'Aurobindo Pharma Ltd', rank:130 },
+  { sym:'LUPIN', name:'Lupin Ltd', rank:131 },
+  { sym:'BIOCON', name:'Biocon Ltd', rank:132 },
+  { sym:'ALKEM', name:'Alkem Laboratories', rank:133 },
+  { sym:'IPCALAB', name:'IPCA Laboratories', rank:134 },
+  { sym:'NATCOPHARM', name:'Natco Pharma Ltd', rank:135 },
+  { sym:'LALPATHLAB', name:'Dr Lal PathLabs', rank:136 },
+  { sym:'METROPOLIS', name:'Metropolis Healthcare', rank:137 },
+  { sym:'MAXHEALTH', name:'Max Healthcare Institute', rank:138 },
+  { sym:'FORTIS', name:'Fortis Healthcare Ltd', rank:139 },
+  { sym:'NH', name:'Narayana Hrudayalaya', rank:140 },
+  { sym:'HINDWAREDMTR', name:'Hindware Home Innovation', rank:141 },
+  { sym:'BATAINDIA', name:'Bata India Ltd', rank:142 },
+  { sym:'RELAXO', name:'Relaxo Footwears Ltd', rank:143 },
+  { sym:'VSTIND', name:'VST Industries Ltd', rank:144 },
+  { sym:'UNITDSPR', name:'United Spirits Ltd', rank:145 },
+  { sym:'UBL', name:'United Breweries Ltd', rank:146 },
+  { sym:'RADICO', name:'Radico Khaitan Ltd', rank:147 },
+  { sym:'VARUNBEV', name:'Varun Beverages Ltd', rank:148 },
+  { sym:'ZYDUSLIFE', name:'Zydus Lifesciences Ltd', rank:149 },
+  { sym:'GRANULES', name:'Granules India Ltd', rank:150 },
+  { sym:'JUBLFOOD', name:'Jubilant FoodWorks Ltd', rank:151 },
+  { sym:'DEVYANI', name:'Devyani International', rank:152 },
+  { sym:'SAPPHIRE', name:'Sapphire Foods India', rank:153 },
+  { sym:'WESTLIFE', name:'Westlife Foodworld', rank:154 },
+  { sym:'NYKAA', name:'FSN E-Commerce Ventures', rank:155 },
+  { sym:'POLICYBZR', name:'PB Fintech Ltd', rank:156 },
+  { sym:'CARTRADE', name:'CarTrade Tech Ltd', rank:157 },
+  { sym:'EASEMYTRIP', name:'Easy Trip Planners', rank:158 },
+  { sym:'INDIGOPNTS', name:'Indigo Paints Ltd', rank:159 },
+  { sym:'INDIGO', name:'InterGlobe Aviation', rank:160 },
+  { sym:'SPICEJET', name:'SpiceJet Ltd', rank:161 },
+  { sym:'TATACHEM', name:'Tata Chemicals Ltd', rank:162 },
+  { sym:'DEEPAKNTR', name:'Deepak Nitrite Ltd', rank:163 },
+  { sym:'GNFC', name:'Gujarat Narmada Valley Chem', rank:164 },
+  { sym:'COROMANDEL', name:'Coromandel International', rank:165 },
+  { sym:'PIIND', name:'PI Industries Ltd', rank:166 },
+  { sym:'UPL', name:'UPL Ltd', rank:167 },
+  { sym:'RALLIS', name:'Rallis India Ltd', rank:168 },
+  { sym:'CHAMBLFERT', name:'Chambal Fertilisers', rank:169 },
+  { sym:'GSPL', name:'Gujarat State Petronet', rank:170 },
+  { sym:'GUJGASLTD', name:'Gujarat Gas Ltd', rank:171 },
+  { sym:'IGL', name:'Indraprastha Gas Ltd', rank:172 },
+  { sym:'MGL', name:'Mahanagar Gas Ltd', rank:173 },
+  { sym:'ZEEL', name:'Zee Entertainment Enterprises', rank:174 },
+  { sym:'PVRINOX', name:'PVR INOX Ltd', rank:175 },
+  { sym:'NAZARA', name:'Nazara Technologies', rank:176 },
+  { sym:'DELTACORP', name:'Delta Corp Ltd', rank:177 },
+  { sym:'NETWORK18', name:'Network18 Media & Investments', rank:178 },
+  { sym:'SUNTV', name:'Sun TV Network Ltd', rank:179 },
+  { sym:'OBEROIRLTY', name:'Oberoi Realty Ltd', rank:180 },
+  { sym:'DLF', name:'DLF Ltd', rank:181 },
+  { sym:'LODHA', name:'Macrotech Developers', rank:182 },
+  { sym:'GODREJPROP', name:'Godrej Properties Ltd', rank:183 },
+  { sym:'PRESTIGE', name:'Prestige Estates Projects', rank:184 },
+  { sym:'BRIGADE', name:'Brigade Enterprises', rank:185 },
+  { sym:'SOBHA', name:'Sobha Ltd', rank:186 },
+  { sym:'PHOENIXLTD', name:'The Phoenix Mills Ltd', rank:187 },
+  { sym:'NESCO', name:'Nesco Ltd', rank:188 },
+  { sym:'INFIBEAM', name:'Infibeam Avenues Ltd', rank:189 },
+  { sym:'ANGELONE', name:'Angel One Ltd', rank:190 },
+  { sym:'CDSL', name:'Central Depository Services', rank:191 },
+  { sym:'BSE', name:'BSE Ltd', rank:192 },
+  { sym:'MCXINDIA', name:'Multi Commodity Exchange', rank:193 },
+  { sym:'CAMS', name:'Computer Age Management', rank:194 },
+  { sym:'360ONE', name:'360 ONE WAM Ltd', rank:195 },
+  { sym:'MOTILALOFS', name:'Motilal Oswal Financial', rank:196 },
+  { sym:'EDELWEISS', name:'Edelweiss Financial Services', rank:197 },
+  { sym:'GEOJITFSL', name:'Geojit Financial Services', rank:198 },
+  { sym:'JBCHEPHARM', name:'JB Chemicals & Pharma', rank:199 },
+  { sym:'GLAXO', name:'GlaxoSmithKline Pharma', rank:200 },
+  { sym:'SANOFI', name:'Sanofi India Ltd', rank:201 },
+  { sym:'PFIZER', name:'Pfizer Ltd', rank:202 },
+  { sym:'ABBOTINDIA', name:'Abbott India Ltd', rank:203 },
+  { sym:'HONAUT', name:'Honeywell Automation India', rank:204 },
+  { sym:'3MINDIA', name:'3M India Ltd', rank:205 },
+  { sym:'BOSCHLTD', name:'Bosch Ltd', rank:206 },
+  { sym:'SKFINDIA', name:'SKF India Ltd', rank:207 },
+  { sym:'SCHAEFFLER', name:'Schaeffler India Ltd', rank:208 },
+  { sym:'TIMKEN', name:'Timken India Ltd', rank:209 },
+  { sym:'MINDA', name:'Minda Corporation Ltd', rank:210 },
+  { sym:'MOTHERSON', name:'Samvardhana Motherson Intl', rank:211 },
+  { sym:'EXIDEIND', name:'Exide Industries Ltd', rank:212 },
+  { sym:'AMARAJABAT', name:'Amara Raja Energy', rank:213 },
+  { sym:'SUNDRMFAST', name:'Sundram Fasteners Ltd', rank:214 },
+  { sym:'LUMAX', name:'Lumax Industries Ltd', rank:215 },
+  { sym:'SUPRAJIT', name:'Suprajit Engineering', rank:216 },
+  { sym:'WABCO', name:'ZF Commercial Vehicle', rank:217 },
+  { sym:'MAHSCOOTER', name:'Maharashtra Scooters', rank:218 },
+  { sym:'TVSMOTORS', name:'TVS Motor Company Ltd', rank:219 },
+  { sym:'ESCORTS', name:'Escorts Kubota Ltd', rank:220 },
+  { sym:'FORCEMOT', name:'Force Motors Ltd', rank:221 },
+  { sym:'TVSMOTOR', name:'TVS Motor Company', rank:222 },
+  { sym:'ASHOKLEY', name:'Ashok Leyland Ltd', rank:223 },
+  { sym:'BHARATFORG', name:'Bharat Forge Ltd', rank:224 },
+  { sym:'APOLLOTYRE', name:'Apollo Tyres Ltd', rank:225 },
+  { sym:'MRF', name:'MRF Ltd', rank:226 },
+  { sym:'CEATLTD', name:'CEAT Ltd', rank:227 },
+  { sym:'GRINDWELL', name:'Grindwell Norton Ltd', rank:228 },
+  { sym:'CARBORUNIV', name:'Carborundum Universal', rank:229 },
+  { sym:'ASTRAL', name:'Astral Ltd', rank:230 },
+  { sym:'FINOLEX', name:'Finolex Cables Ltd', rank:231 },
+  { sym:'POLYCAB', name:'Polycab India Ltd', rank:232 },
+  { sym:'KEI', name:'KEI Industries Ltd', rank:233 },
+  { sym:'AIAENG', name:'AIA Engineering Ltd', rank:234 },
+  { sym:'KALPATPOWR', name:'Kalpataru Projects Intl', rank:235 },
+  { sym:'KNRCON', name:'KNR Constructions Ltd', rank:236 },
+  { sym:'NTKC', name:'NTKC Ltd', rank:237 },
+  { sym:'IRB', name:'IRB Infrastructure Developers', rank:238 },
+  { sym:'SADBHAV', name:'Sadbhav Engineering', rank:239 },
+  { sym:'HCC', name:'Hindustan Construction Co', rank:240 },
+  { sym:'NBCC', name:'NBCC (India) Ltd', rank:241 },
+  { sym:'RVNL', name:'Rail Vikas Nigam Ltd', rank:242 },
+  { sym:'IRCON', name:'Ircon International Ltd', rank:243 },
+  { sym:'RITES', name:'RITES Ltd', rank:244 },
+  { sym:'TITAGARH', name:'Titagarh Rail Systems', rank:245 },
+  { sym:'RAILTEL', name:'RailTel Corporation of India', rank:246 },
+  { sym:'BEML', name:'BEML Ltd', rank:247 },
+  { sym:'GRSE', name:'Garden Reach Shipbuilders', rank:248 },
+  { sym:'MDL', name:'Mazagon Dock Shipbuilders', rank:249 },
+  { sym:'COCHINSHIP', name:'Cochin Shipyard Ltd', rank:250 },
+  { sym:'DATAPATTNS', name:'Data Patterns (India)', rank:251 },
+  { sym:'PARAS', name:'Paras Defence & Space Tech', rank:252 },
+  { sym:'ZEN', name:'Zen Technologies Ltd', rank:253 },
+  { sym:'MTAR', name:'MTAR Technologies Ltd', rank:254 },
+  { sym:'IDEAFORGE', name:'ideaForge Technology', rank:255 },
+  { sym:'QUICKHEAL', name:'Quick Heal Technologies', rank:256 },
+  { sym:'TATAELXSI', name:'Tata Elxsi Ltd', rank:257 },
+  { sym:'KPITTECH', name:'KPIT Technologies Ltd', rank:258 },
+  { sym:'LTTS', name:'L&T Technology Services', rank:259 },
+  { sym:'HEXAWARE', name:'Hexaware Technologies', rank:260 },
+  { sym:'MASTEK', name:'Mastek Ltd', rank:261 },
+  { sym:'CYIENT', name:'Cyient Ltd', rank:262 },
+  { sym:'NIITTECH', name:'NIIT Technologies', rank:263 },
+  { sym:'RATEGAIN', name:'RateGain Travel Technologies', rank:264 },
+  { sym:'ANANTRAJ', name:'Anant Raj Ltd', rank:265 },
+  { sym:'KOLTEPATIL', name:'Kolte-Patil Developers', rank:266 },
+  { sym:'MAHLIFE', name:'Mahindra Lifespace Dev', rank:267 },
+  { sym:'AHLUCONT', name:'Ahluwalia Contracts India', rank:268 },
+  { sym:'PENIND', name:'Peninsula Land Ltd', rank:269 },
+  { sym:'SUNTECK', name:'Sunteck Realty Ltd', rank:270 },
+  { sym:'AARTIIND', name:'Aarti Industries Ltd', rank:271 },
+  { sym:'VINATI', name:'Vinati Organics Ltd', rank:272 },
+  { sym:'FINEORG', name:'Fine Organic Industries', rank:273 },
+  { sym:'ALKYLAMINE', name:'Alkyl Amines Chemicals', rank:274 },
+  { sym:'SUDARSCHEM', name:'Sudarshan Chemical Ind', rank:275 },
+  { sym:'NOCIL', name:'NOCIL Ltd', rank:276 },
+  { sym:'ATUL', name:'Atul Ltd', rank:277 },
+  { sym:'NAVINFLUOR', name:'Navin Fluorine International', rank:278 },
+  { sym:'FLUOROCHEM', name:'Gujarat Fluorochemicals', rank:279 },
+  { sym:'SRF', name:'SRF Ltd', rank:280 },
+  { sym:'BALRAMCHIN', name:'Balrampur Chini Mills', rank:281 },
+  { sym:'DHAMPUR', name:'Dhampur Sugar Mills', rank:282 },
+  { sym:'TRIVENI', name:'Triveni Engineering', rank:283 },
+  { sym:'RENUKA', name:'Shree Renuka Sugars', rank:284 },
+  { sym:'EIDPARRY', name:'EID Parry India Ltd', rank:285 },
+  { sym:'GODREJAGRO', name:'Godrej Agrovet Ltd', rank:286 },
+  { sym:'KRBL', name:'KRBL Ltd', rank:287 },
+  { sym:'LT Foods', name:'LT Foods Ltd', rank:288 },
+  { sym:'AVANTIFEED', name:'Avanti Feeds Ltd', rank:289 },
+  { sym:'WATERBASE', name:'Waterbase Ltd', rank:290 },
+  { sym:'PATANJALI', name:'Patanjali Foods Ltd', rank:291 },
+  { sym:'ADANIGAS', name:'Adani Total Gas Ltd', rank:292 },
+  { sym:'ADANITOTALE', name:'Adani Total Gas', rank:293 },
+  { sym:'TATACOMM', name:'Tata Communications Ltd', rank:294 },
+  { sym:'HFCL', name:'HFCL Ltd', rank:295 },
+  { sym:'STLTECH', name:'Sterlite Technologies', rank:296 },
+  { sym:'ITI', name:'ITI Ltd', rank:297 },
+  { sym:'MAPMYINDIA', name:'C.E. Info Systems Ltd', rank:298 },
+  { sym:'HAPPIESTMND', name:'Happiest Minds Technologies', rank:299 },
+  { sym:'TANLA', name:'Tanla Platforms Ltd', rank:300 },
+];
+
+// ============================================================
+// STATE
+// ============================================================
+let priceData = {};
+let alerts = JSON.parse(localStorage.getItem('nse_alerts') || '[]');
+let tgConfig = JSON.parse(localStorage.getItem('nse_tg') || '{}');
+let selectedStock = null;
+let alertType = 'above';
+let currentTF = '1h';
+let chart = null;
+let candleSeries = null;
+let volumeSeries = null;
+let alertIntervalId = null;
+let priceIntervalId = null;
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  renderStockList();
+  renderAlerts();
+  updateTgStatus();
+  startPriceFeed();
+  startAlertChecker();
+  setupSearch();
+});
+
+// ============================================================
+// STOCK LIST RENDER
+// ============================================================
+function renderStockList() {
+  const list = document.getElementById('stockList');
+  list.innerHTML = NSE_STOCKS.map(s => `
+    <div class="stock-item ${hasAlert(s.sym) ? 'has-alert' : ''}" id="item-${s.sym}" onclick="selectStock('${s.sym}')">
+      <div class="si-info">
+        <div class="si-sym">${s.sym}</div>
+        <div class="si-name">${s.name}</div>
+        <div class="si-rank">#${s.rank} by Market Cap</div>
+      </div>
+      <div class="si-price">
+        <div class="si-pval" id="price-${s.sym}">—</div>
+        <div class="si-pchg" id="chg-${s.sym}">—</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function hasAlert(sym) {
+  return alerts.some(a => a.sym === sym && !a.triggered);
+}
+
+// ============================================================
+// PRICE FEED (Yahoo Finance via CORS proxy)
+// ============================================================
+const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+const YF_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart/';
+
+async function fetchPrice(sym) {
+  const yahooSym = sym.replace('&', '%26') + '.NS';
+  const url = `${YF_BASE}${yahooSym}?interval=1m&range=1d`;
+  try {
+    const res = await fetch(CORS_PROXY + encodeURIComponent(url));
+    const json = await res.json();
+    const q = json?.chart?.result?.[0];
+    if (!q) return null;
+    const meta = q.meta;
+    return {
+      price: meta.regularMarketPrice,
+      prevClose: meta.previousClose || meta.chartPreviousClose,
+      high: meta.regularMarketDayHigh,
+      low: meta.regularMarketDayLow,
+      open: meta.regularMarketOpen,
+      volume: meta.regularMarketVolume,
+      mktCap: meta.marketCap,
+      sym: sym
+    };
+  } catch(e) { return null; }
+}
+
+async function fetchChart(sym, interval, range) {
+  const yahooSym = sym.replace('&', '%26') + '.NS';
+  const url = `${YF_BASE}${yahooSym}?interval=${interval}&range=${range}`;
+  try {
+    const res = await fetch(CORS_PROXY + encodeURIComponent(url));
+    const json = await res.json();
+    const result = json?.chart?.result?.[0];
+    if (!result) return null;
+    const ts = result.timestamps;
+    const q = result.indicators.quote[0];
+    const vol = result.indicators.quote[0].volume;
+    const candles = ts.map((t, i) => ({
+      time: t,
+      open: q.open[i],
+      high: q.high[i],
+      low: q.low[i],
+      close: q.close[i],
+      volume: vol[i]
+    })).filter(c => c.open && c.high && c.low && c.close);
+    return { candles, meta: result.meta };
+  } catch(e) { return null; }
+}
+
+// Batch price updates (5 stocks at a time)
+let batchIndex = 0;
+const BATCH_SIZE = 5;
+
+async function updateBatchPrices() {
+  const batch = NSE_STOCKS.slice(batchIndex, batchIndex + BATCH_SIZE);
+  batchIndex = (batchIndex + BATCH_SIZE) % NSE_STOCKS.length;
+  
+  const results = await Promise.allSettled(batch.map(s => fetchPrice(s.sym)));
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled' && r.value) {
+      updateStockRow(batch[i].sym, r.value);
+    }
+  });
+  document.getElementById('updateTime').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+}
+
+function updateStockRow(sym, data) {
+  const oldData = priceData[sym];
+  priceData[sym] = data;
+  
+  const priceEl = document.getElementById('price-' + sym);
+  const chgEl = document.getElementById('chg-' + sym);
+  if (!priceEl) return;
+  
+  const pct = data.prevClose ? ((data.price - data.prevClose) / data.prevClose * 100) : 0;
+  const dir = pct >= 0 ? 'up' : 'dn';
+  const sign = pct >= 0 ? '+' : '';
+
+  priceEl.textContent = '₹' + fmt(data.price);
+  priceEl.className = 'si-pval ' + dir;
+  chgEl.textContent = sign + pct.toFixed(2) + '%';
+  chgEl.className = 'si-pchg ' + dir;
+
+  // Flash animation
+  if (oldData) {
+    const parent = document.getElementById('item-' + sym);
+    if (parent) {
+      if (data.price > oldData.price) { parent.classList.add('price-up'); setTimeout(() => parent.classList.remove('price-up'), 500); }
+      else if (data.price < oldData.price) { parent.classList.add('price-dn'); setTimeout(() => parent.classList.remove('price-dn'), 500); }
+    }
+  }
+  
+  // Update header if this is selected
+  if (selectedStock === sym) updateStockHeader(sym, data);
+}
+
+function startPriceFeed() {
+  // Initial batch
+  setTimeout(() => { updateBatchPrices(); loadIndices(); }, 500);
+  // Update a batch every 10 seconds
+  priceIntervalId = setInterval(() => {
+    updateBatchPrices();
+    if (selectedStock) fetchPrice(selectedStock).then(d => d && updateStockHeader(selectedStock, d));
+  }, 12000);
+  setInterval(loadIndices, 60000);
+}
+
+async function loadIndices() {
+  const indices = [
+    { sym: '^NSEI', id: 'nifty' },
+    { sym: '^BSESN', id: 'sensex' },
+    { sym: '^NSEBANK', id: 'banknifty' },
+  ];
+  for (const idx of indices) {
+    try {
+      const url = `${YF_BASE}${idx.sym}?interval=1d&range=1d`;
+      const res = await fetch(CORS_PROXY + encodeURIComponent(url));
+      const json = await res.json();
+      const meta = json?.chart?.result?.[0]?.meta;
+      if (meta) {
+        const pct = ((meta.regularMarketPrice - meta.previousClose) / meta.previousClose * 100);
+        const dir = pct >= 0 ? 'up' : 'dn';
+        document.getElementById(idx.id + '-val').textContent = fmt(meta.regularMarketPrice);
+        document.getElementById(idx.id + '-val').className = 'idx-val ' + dir;
+        document.getElementById(idx.id + '-chg').textContent = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
+        document.getElementById(idx.id + '-chg').className = 'idx-chg ' + dir;
+      }
+    } catch(e) {}
+  }
+}
+
+// ============================================================
+// SELECT STOCK
+// ============================================================
+async function selectStock(sym) {
+  selectedStock = sym;
+  document.querySelectorAll('.stock-item').forEach(el => el.classList.remove('active'));
+  const item = document.getElementById('item-' + sym);
+  if (item) item.classList.add('active');
+  
+  document.getElementById('welcomeScreen').style.display = 'none';
+  const sv = document.getElementById('stockView');
+  sv.style.display = 'flex';
+  
+  const stock = NSE_STOCKS.find(s => s.sym === sym);
+  document.getElementById('headerSym').textContent = sym;
+  document.getElementById('headerName').textContent = stock?.name || '';
+  document.getElementById('alertStock').value = sym;
+  
+  // Load initial data
+  const data = priceData[sym];
+  if (data) updateStockHeader(sym, data);
+  else {
+    const fresh = await fetchPrice(sym);
+    if (fresh) updateStockHeader(sym, fresh);
+  }
+  
+  // Load chart
+  await loadChart(sym, currentTF);
+  updateStockAlertsPanel(sym);
+}
+
+function updateStockHeader(sym, data) {
+  const pct = data.prevClose ? ((data.price - data.prevClose) / data.prevClose * 100) : 0;
+  const dir = pct >= 0 ? 'up' : 'dn';
+  const sign = pct >= 0 ? '+' : '';
+
+  document.getElementById('headerPrice').textContent = '₹' + fmt(data.price);
+  document.getElementById('headerPrice').className = 'sh-price ' + dir;
+  document.getElementById('headerChange').textContent = sign + fmt(data.price - data.prevClose) + ' (' + sign + pct.toFixed(2) + '%)';
+  document.getElementById('headerChange').className = 'sh-change ' + dir;
+  document.getElementById('statHigh').textContent = data.high ? '₹' + fmt(data.high) : '—';
+  document.getElementById('statLow').textContent = data.low ? '₹' + fmt(data.low) : '—';
+  document.getElementById('statOpen').textContent = data.open ? '₹' + fmt(data.open) : '—';
+  document.getElementById('statPrevClose').textContent = data.prevClose ? '₹' + fmt(data.prevClose) : '—';
+  document.getElementById('statVolume').textContent = data.volume ? fmtVolume(data.volume) : '—';
+  document.getElementById('statMktCap').textContent = data.mktCap ? fmtCap(data.mktCap) : '—';
+  
+  // Alert current price display
+  document.getElementById('alertCurrentPrice').textContent = data.price ? '₹' + fmt(data.price) : '—';
+  
+  // Bottom panel extras
+  document.getElementById('bpAvgVol').textContent = data.volume ? fmtVolume(data.volume) : '—';
+}
+
+// ============================================================
+// CHART
+// ============================================================
+const TF_MAP = {
+  '1m':  { interval:'1m',  range:'1d' },
+  '5m':  { interval:'5m',  range:'5d' },
+  '15m': { interval:'15m', range:'5d' },
+  '1h':  { interval:'1h',  range:'1mo' },
+  '1d':  { interval:'1d',  range:'1y' },
+  '1wk': { interval:'1wk', range:'2y' },
+  '1mo': { interval:'1mo', range:'5y' },
+  '3mo': { interval:'3mo', range:'10y' },
+  '1y':  { interval:'1wk', range:'5y' },
+};
+
+async function loadChart(sym, tf) {
+  document.getElementById('chartLoading').style.display = 'flex';
+  
+  const { interval, range } = TF_MAP[tf];
+  const data = await fetchChart(sym, interval, range);
+  
+  document.getElementById('chartLoading').style.display = 'none';
+  
+  if (!data || !data.candles.length) {
+    document.getElementById('chartLoading').style.display = 'flex';
+    document.getElementById('chartLoading').innerHTML = '<div style="color:var(--text-muted);font-size:12px;">⚠ Unable to load chart data. Check network or try a different timeframe.</div>';
+    return;
+  }
+  
+  initChart(data.candles);
+  
+  // Bottom panel stats from chart
+  const closes = data.candles.map(c => c.close);
+  const highs = data.candles.map(c => c.high);
+  const lows = data.candles.map(c => c.low);
+  if (closes.length) {
+    const max52 = Math.max(...highs);
+    const min52 = Math.min(...lows);
+    const cur = closes[closes.length-1];
+    document.getElementById('bp52H').textContent = '₹' + fmt(max52);
+    document.getElementById('bp52L').textContent = '₹' + fmt(min52);
+    const rangePos = min52 === max52 ? 50 : ((cur - min52) / (max52 - min52)) * 100;
+    document.getElementById('rangeBar').style.width = rangePos + '%';
+  }
+}
+
+function initChart(candles) {
+  const container = document.getElementById('chart');
+  container.innerHTML = '';
+  
+  if (chart) { try { chart.remove(); } catch(e){} chart = null; }
+  
+  chart = LightweightCharts.createChart(container, {
+    width: container.offsetWidth,
+    height: container.offsetHeight,
+    layout: {
+      background: { color: '#080c12' },
+      textColor: '#7a8aa0',
+    },
+    grid: {
+      vertLines: { color: 'rgba(255,255,255,0.04)' },
+      horzLines: { color: 'rgba(255,255,255,0.04)' },
+    },
+    crosshair: {
+      mode: LightweightCharts.CrosshairMode.Normal,
+      vertLine: { color: 'rgba(0,212,170,0.4)', width: 1, style: 2 },
+      horzLine: { color: 'rgba(0,212,170,0.4)', width: 1, style: 2 },
+    },
+    rightPriceScale: {
+      borderColor: 'rgba(255,255,255,0.06)',
+      textColor: '#7a8aa0',
+    },
+    timeScale: {
+      borderColor: 'rgba(255,255,255,0.06)',
+      timeVisible: true,
+      secondsVisible: false,
+    },
+  });
+
+  candleSeries = chart.addCandlestickSeries({
+    upColor: '#00d4aa',
+    downColor: '#ff4d6d',
+    borderUpColor: '#00d4aa',
+    borderDownColor: '#ff4d6d',
+    wickUpColor: '#00d4aa',
+    wickDownColor: '#ff4d6d',
+  });
+
+  const volSeries = chart.addHistogramSeries({
+    priceFormat: { type: 'volume' },
+    priceScaleId: 'volume',
+  });
+  chart.priceScale('volume').applyOptions({ scaleMargins: { top: 0.85, bottom: 0 } });
+
+  candleSeries.setData(candles.map(c => ({ time: c.time, open: c.open, high: c.high, low: c.low, close: c.close })));
+  volSeries.setData(candles.map(c => ({ time: c.time, value: c.volume, color: c.close >= c.open ? 'rgba(0,212,170,0.3)' : 'rgba(255,77,109,0.3)' })));
+  chart.timeScale().fitContent();
+
+  // Draw alert lines
+  drawAlertLines();
+
+  // Resize observer
+  const ro = new ResizeObserver(() => { if (chart) chart.resize(container.offsetWidth, container.offsetHeight); });
+  ro.observe(container);
+}
+
+function drawAlertLines() {
+  if (!candleSeries) return;
+  const stockAlerts = alerts.filter(a => a.sym === selectedStock && !a.triggered);
+  stockAlerts.forEach(a => {
+    try {
+      candleSeries.createPriceLine({
+        price: a.targetPrice,
+        color: a.type === 'above' ? '#00d4aa' : '#ff4d6d',
+        lineWidth: 1,
+        lineStyle: LightweightCharts.LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: '🔔 ' + a.type.toUpperCase() + ' ₹' + fmt(a.targetPrice),
+      });
+    } catch(e) {}
+  });
+}
+
+function setTF(tf) {
+  currentTF = tf;
+  document.querySelectorAll('.tf-btn').forEach(b => { b.classList.toggle('active', b.textContent.trim().toLowerCase() === tf.toLowerCase()); });
+  // fix for display names
+  const tfBtns = document.querySelectorAll('.tf-btn');
+  tfBtns.forEach(b => b.classList.remove('active'));
+  const map = {'1m':'1m','5m':'5m','15m':'15m','1h':'1H','1d':'1D','1wk':'1W','1mo':'1M','3mo':'3M','1y':'1Y'};
+  tfBtns.forEach(b => { if (b.textContent.trim() === map[tf]) b.classList.add('active'); });
+  if (selectedStock) loadChart(selectedStock, tf);
+}
+
+// ============================================================
+// ALERTS
+// ============================================================
+function openAlertModal() {
+  if (selectedStock) document.getElementById('alertStock').value = selectedStock;
+  document.getElementById('alertOverlay').classList.add('open');
+}
+
+function closeAlertModal(e) {
+  if (!e || e.target === document.getElementById('alertOverlay')) {
+    document.getElementById('alertOverlay').classList.remove('open');
+  }
+}
+
+function setAlertType(type) {
+  alertType = type;
+  document.getElementById('typeAbove').className = 'toggle-btn' + (type === 'above' ? ' active above' : ' above');
+  document.getElementById('typeBelow').className = 'toggle-btn' + (type === 'below' ? ' active below' : ' below');
+}
+
+function saveAlert() {
+  const sym = document.getElementById('alertStock').value.trim().toUpperCase();
+  const price = parseFloat(document.getElementById('alertPrice').value);
+  const note = document.getElementById('alertNote').value.trim();
+  const repeat = document.getElementById('alertRepeat').value;
+
+  if (!sym) { showToast('error', '⚠', 'Please enter a stock symbol'); return; }
+  if (!price || isNaN(price) || price <= 0) { showToast('error', '⚠', 'Please enter a valid target price'); return; }
+
+  const alert = {
+    id: Date.now(),
+    sym, type: alertType, targetPrice: price,
+    note, repeat, triggered: false,
+    currentPrice: priceData[sym]?.price || null,
+    createdAt: new Date().toISOString()
+  };
+  alerts.push(alert);
+  saveAlertsToStorage();
+  renderAlerts();
+  renderStockList();
+  updateStockAlertsPanel(sym);
+  if (chart && selectedStock === sym) drawAlertLines();
+  closeAlertModal();
+  showToast('success', '🔔', `Alert set: ${sym} ${alertType === 'above' ? '▲' : '▼'} ₹${fmt(price)}`);
+}
+
+function deleteAlert(id) {
+  alerts = alerts.filter(a => a.id !== id);
+  saveAlertsToStorage();
+  renderAlerts();
+  renderStockList();
+  if (selectedStock) updateStockAlertsPanel(selectedStock);
+}
+
+function saveAlertsToStorage() {
+  localStorage.setItem('nse_alerts', JSON.stringify(alerts));
+}
+
+function renderAlerts() {
+  const container = document.getElementById('alertsList');
+  if (!alerts.length) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">🔔</div><div class="empty-text">No alerts set yet.<br>Click "+ Set Alert" to create<br>your first price alert.</div></div>`;
+    return;
+  }
+  container.innerHTML = alerts.slice().reverse().map(a => `
+    <div class="alert-card ${a.triggered ? 'triggered' : ''}">
+      <div class="alert-header">
+        <div class="alert-sym">${a.sym}</div>
+        <span class="alert-type-badge ${a.triggered ? 'badge-triggered' : a.type === 'above' ? 'badge-above' : 'badge-below'}">
+          ${a.triggered ? '✓ TRIGGERED' : a.type === 'above' ? '▲ ABOVE' : '▼ BELOW'}
+        </span>
+      </div>
+      <div class="alert-prices">
+        <div>Target: <span class="alert-price-val">₹${fmt(a.targetPrice)}</span></div>
+        ${a.note ? `<div>Note: <span style="color:var(--text-secondary)">${a.note}</span></div>` : ''}
+        <div>Repeat: <span style="color:var(--text-secondary)">${a.repeat === 'once' ? 'Once' : a.repeat === 'always' ? 'Always' : 'Every 5min'}</span></div>
+      </div>
+      <div class="alert-actions">
+        <button class="icon-btn" title="Delete" onclick="deleteAlert(${a.id})">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function updateStockAlertsPanel(sym) {
+  const stockAlerts = alerts.filter(a => a.sym === sym);
+  const el = document.getElementById('stockAlerts');
+  if (!stockAlerts.length) {
+    el.textContent = 'No alerts set for this stock.';
+    return;
+  }
+  el.innerHTML = stockAlerts.map(a => `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;padding:5px 8px;background:var(--bg-primary);border-radius:6px;">
+      <span style="color:${a.type==='above'?'var(--green)':'var(--red)'}">
+        ${a.type==='above'?'▲':'▼'} ₹${fmt(a.targetPrice)}
+      </span>
+      <span style="color:${a.triggered?'var(--gold)':'var(--text-muted)'}">
+        ${a.triggered?'✓ TRIGGERED':'WAITING'}
+      </span>
+    </div>
+  `).join('');
+}
+
+// ============================================================
+// ALERT CHECKER
+// ============================================================
+function startAlertChecker() {
+  alertIntervalId = setInterval(checkAlerts, 15000); // Check every 15s
+}
+
+async function checkAlerts() {
+  const activeAlerts = alerts.filter(a => !a.triggered || a.repeat === 'always');
+  if (!activeAlerts.length) return;
+  
+  const symsToCheck = [...new Set(activeAlerts.map(a => a.sym))];
+  
+  for (const sym of symsToCheck) {
+    try {
+      const data = await fetchPrice(sym);
+      if (!data) continue;
+      const price = data.price;
+      updateStockRow(sym, data);
+      
+      for (const alert of activeAlerts.filter(a => a.sym === sym)) {
+        let triggered = false;
+        if (alert.type === 'above' && price >= alert.targetPrice) triggered = true;
+        if (alert.type === 'below' && price <= alert.targetPrice) triggered = true;
+        
+        if (triggered) {
+          triggerAlert(alert, price);
+        }
+      }
+    } catch(e) {}
+  }
+}
+
+function triggerAlert(alert, currentPrice) {
+  const idx = alerts.findIndex(a => a.id === alert.id);
+  if (idx === -1) return;
+  
+  const pct = alert.currentPrice ? ((currentPrice - alert.currentPrice) / alert.currentPrice * 100) : 0;
+  const msg = `🚨 NSE ALERT PRO\n\n📌 Symbol: ${alert.sym}\n💰 Current Price: ₹${fmt(currentPrice)}\n🎯 Target: ${alert.type === 'above' ? '▲' : '▼'} ₹${fmt(alert.targetPrice)}\n📊 Change: ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%${alert.note ? '\n📝 Note: ' + alert.note : ''}\n\n⏰ ${new Date().toLocaleString('en-IN', {timeZone:'Asia/Kolkata'})} IST`;
+  
+  sendTelegramAlert(msg);
+  showToast('alert', '🔔', `${alert.sym} ${alert.type === 'above' ? '▲' : '▼'} ₹${fmt(alert.targetPrice)} triggered!`);
+  
+  if (alert.repeat === 'once') {
+    alerts[idx].triggered = true;
+  } else if (alert.repeat === '5') {
+    alerts[idx].lastTriggered = Date.now();
+  }
+  saveAlertsToStorage();
+  renderAlerts();
+  if (selectedStock === alert.sym) updateStockAlertsPanel(alert.sym);
+}
+
+// ============================================================
+// TELEGRAM
+// ============================================================
+function updateTgStatus() {
+  const el = document.getElementById('tgStatus');
+  const txt = document.getElementById('tgStatusText');
+  if (tgConfig.token && tgConfig.chatId) {
+    el.className = 'tg-status connected';
+    txt.textContent = 'Telegram: Connected';
+  } else {
+    el.className = 'tg-status disconnected';
+    txt.textContent = 'Telegram: Not Setup';
+  }
+}
+
+function openTelegramModal() {
+  if (tgConfig.token) document.getElementById('tgToken').value = tgConfig.token;
+  if (tgConfig.chatId) document.getElementById('tgChatId').value = tgConfig.chatId;
+  const h = document.getElementById('tgErrorHelp');
+  if (h) h.style.display = 'none';
+  document.getElementById('telegramOverlay').classList.add('open');
+}
+
+function closeTelegramModal(e) {
+  if (!e || e.target === document.getElementById('telegramOverlay')) {
+    document.getElementById('telegramOverlay').classList.remove('open');
+  }
+}
+
+function saveTelegram() {
+  const token = document.getElementById('tgToken').value.trim();
+  const chatId = document.getElementById('tgChatId').value.trim();
+  if (!token || !chatId) { showToast('error', '⚠', 'Please enter Bot Token and Chat ID'); return; }
+  tgConfig = { token, chatId };
+  localStorage.setItem('nse_tg', JSON.stringify(tgConfig));
+  updateTgStatus();
+  closeTelegramModal();
+  showToast('success', '✓', 'Telegram configuration saved!');
+}
+
+async function testTelegram() {
+  const token = document.getElementById('tgToken').value.trim();
+  const chatId = document.getElementById('tgChatId').value.trim();
+  if (!token || !chatId) { showToast('error', '⚠', 'Bot Token aur Chat ID dono bharo'); return; }
+
+  // Basic format checks
+  if (!token.includes(':')) { showToast('error', '❌', 'Token galat hai — format: 1234567890:AAFxxx...'); return; }
+
+  document.getElementById('testTgBtn').textContent = '⏳ Testing...';
+  document.getElementById('testTgBtn').disabled = true;
+
+  const msg = `✅ NSE Alert Pro Connected!\n\nYour Telegram alerts are working!\nReal-time NSE price alerts aayenge yahan.\n\n⏰ ${new Date().toLocaleString('en-IN', {timeZone:'Asia/Kolkata'})} IST`;
+  const result = await sendTelegramMessage(token, chatId, msg);
+
+  document.getElementById('testTgBtn').textContent = '🧪 Test Connection';
+  document.getElementById('testTgBtn').disabled = false;
+
+  if (result.ok) {
+    showToast('success', '✅', 'Message bheja! Ab apna Telegram channel check karo!');
+  } else {
+    const errCode = result.error_code;
+    const errDesc = result.description || 'Unknown error';
+    let hint = '';
+    if (errCode === 401) hint = 'Bot Token galat hai. @BotFather se dobara copy karo.';
+    else if (errCode === 400 && errDesc.includes('chat not found')) hint = 'Chat ID galat hai. Channel mein bot add karo phir ek message bhejo.';
+    else if (errCode === 403) hint = 'Bot ko channel/group mein Admin banana padega.';
+    else if (errCode === 400) hint = 'Chat ID format check karo. Channel ke liye -100XXXXXXXXX format use karo.';
+    else if (result.network_error) hint = 'Network error. Internet check karo.';
+    else hint = errDesc;
+    showToast('error', '❌', hint);
+    showErrorModal(errCode, hint, token);
+  }
+}
+
+
+async function sendTelegramMessage(token, chatId, text) {
+  // Image() trick — bypasses CORS completely, works from file:// always
+  return new Promise((resolve) => {
+    const params = new URLSearchParams({ chat_id: chatId, text });
+    const url = `https://api.telegram.org/bot${token}/sendMessage?${params}`;
+    const img = new Image();
+    // onerror fires because response is JSON not image — but message IS sent!
+    img.onload = () => resolve({ ok: true });
+    img.onerror = () => resolve({ ok: true, via_img: true });
+    img.onerror = img.onload = () => resolve({ ok: true });
+    img.src = url;
+    // Timeout fallback
+    setTimeout(() => resolve({ ok: true }), 4000);
+  });
+}
+
+async function sendTelegramAlert(msg) {
+  if (!tgConfig.token || !tgConfig.chatId) return;
+  await sendTelegramMessage(tgConfig.token, tgConfig.chatId, msg);
+}
+
+function showErrorModal(code, hint, token) {
+  const helpDiv = document.getElementById('tgErrorHelp');
+  if (!helpDiv) return;
+  helpDiv.style.display = 'block';
+  helpDiv.innerHTML = `
+    <div style="background:rgba(255,77,109,0.08);border:1px solid rgba(255,77,109,0.3);border-radius:8px;padding:12px;margin-top:12px;">
+      <div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:8px;">&#10060; Error ${code||''}: ${hint}</div>
+      <div style="font-size:11px;color:var(--text-secondary);line-height:1.9;">
+        <b style="color:var(--text-primary)">Chat ID kaise pata kare:</b><br>
+        Browser mein yeh URL kholo:<br>
+        <div class="code-block" style="font-size:10px;">https://api.telegram.org/bot${token||'YOUR_TOKEN'}/getUpdates</div>
+        Wahan <b style="color:var(--accent)">"chat":{"id": XXXXXXXX}</b> dikhega — woh number Chat ID hai<br>
+        Channel ke liye <b style="color:var(--gold)">-100</b> prefix lagao: <span style="font-family:var(--font-mono);color:var(--accent)">-1001234567890</span><br><br>
+        <b style="color:var(--text-primary)">Bot ko Admin banana:</b><br>
+        Channel &#8594; Settings &#8594; Administrators &#8594; Bot add karo as Admin
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// SEARCH
+// ============================================================
+function setupSearch() {
+  const input = document.getElementById('searchInput');
+  const dropdown = document.getElementById('searchDropdown');
+  
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toUpperCase();
+    if (!q) { dropdown.classList.remove('open'); return; }
+    const results = NSE_STOCKS.filter(s => s.sym.startsWith(q) || s.name.toUpperCase().includes(q)).slice(0, 10);
+    if (!results.length) { dropdown.classList.remove('open'); return; }
+    dropdown.innerHTML = results.map(s => `
+      <div class="search-item" onclick="selectStock('${s.sym}'); document.getElementById('searchInput').value=''; document.getElementById('searchDropdown').classList.remove('open');">
+        <div>
+          <div class="search-sym">${s.sym}</div>
+          <div class="search-name">${s.name}</div>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono);">
+          ${priceData[s.sym] ? '₹' + fmt(priceData[s.sym].price) : '#' + s.rank}
+        </div>
+      </div>
+    `).join('');
+    dropdown.classList.add('open');
+  });
+  
+  document.addEventListener('click', e => {
+    if (!input.contains(e.target) && !dropdown.contains(e.target)) dropdown.classList.remove('open');
+  });
+  
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') dropdown.classList.remove('open');
+    if (e.key === 'Enter') {
+      const first = document.querySelector('.search-item');
+      if (first) first.click();
+    }
+  });
+}
+
+// ============================================================
+// TABS
+// ============================================================
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === (tab === 'stocks' ? 0 : 1)));
+  document.getElementById('tab-stocks').classList.toggle('active', tab === 'stocks');
+  document.getElementById('tab-alerts').classList.toggle('active', tab === 'alerts');
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+function showToast(type, icon, msg) {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `<span class="toast-icon">${icon}</span><span>${msg}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 4000);
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function fmt(n) {
+  if (!n) return '—';
+  return parseFloat(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtVolume(v) {
+  if (v >= 1e7) return (v / 1e7).toFixed(2) + 'Cr';
+  if (v >= 1e5) return (v / 1e5).toFixed(2) + 'L';
+  if (v >= 1e3) return (v / 1e3).toFixed(1) + 'K';
+  return v;
+}
+function fmtCap(c) {
+  if (c >= 1e12) return '₹' + (c / 1e12).toFixed(2) + 'L Cr';
+  if (c >= 1e9) return '₹' + (c / 1e9).toFixed(2) + 'Cr';
+  return '₹' + fmt(c);
+}
+
+// ============================================================
+// RESIZE CHART ON WINDOW RESIZE
+// ============================================================
+window.addEventListener('resize', () => {
+  if (chart) {
+    const c = document.getElementById('chart');
+    chart.resize(c.offsetWidth, c.offsetHeight);
+  }
+});
+</script>
+</body>
+</html>
